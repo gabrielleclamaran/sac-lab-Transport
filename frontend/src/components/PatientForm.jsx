@@ -24,7 +24,7 @@ export default function PatientForm({ refresh }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await axios.post("http://localhost:5050/patients", form);
+    await axios.post("http://localhost:5050/patients", form);
     setForm({ ...form, name: "", age: "", weight_kg: "", transfer_call_date: "", transfer_call_time: "", referring_hospital: "", other_details: "", transporting_hospital: "", transfer_reason: "", transfer_reason_other: "", transport_team_diagnosis: "", secondary_diagnosis: "", transport_team_other: "", comorbidities: "", heart_rate: "", respiratory_rate: "", saturation: "", fio2: "", blood_pressure: "", temperature: "", glasgow_score: "", departure_heart_rate: "", departure_respiratory_rate: "", departure_saturation: "", departure_fio2: "", departure_blood_pressure: "", departure_temperature: "", departure_glasgow_score: "" });
     refresh();
   };

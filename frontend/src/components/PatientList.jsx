@@ -14,7 +14,7 @@ export default function PatientList({ refreshTrigger }) {
   }, [refreshTrigger]);
 
   const deletePatient = async (id) => {
-    await axios.delete(`http://localhost:5050/patients/${id}`);
+    const res = await axios.get("http://localhost:5050/patients");
     fetchPatients();
   };
 
