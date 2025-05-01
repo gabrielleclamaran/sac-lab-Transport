@@ -35,3 +35,4 @@ class Patient(db.Model):
     departure_blood_pressure = db.Column(db.String(50))
     departure_temperature = db.Column(db.String(50))
     departure_glasgow_score = db.Column(db.String(50))
+

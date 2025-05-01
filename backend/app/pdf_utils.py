@@ -42,3 +42,4 @@ def generate_patient_pdf(patient):
     c.save()
     buffer.seek(0)
     return buffer
+
