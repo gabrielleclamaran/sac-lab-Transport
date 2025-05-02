@@ -2,6 +2,7 @@ import { Routes, Route, useNavigate } from "react-router-dom";
 import PatientForm from "./PatientForm";
 import PatientList from "./PatientList";
 import { useState } from "react";
+import BackButton from "./BackButton";
 
 export default function App() {
   const navigate = useNavigate();
@@ -17,7 +18,13 @@ export default function App() {
   };
 
   return (
-    <div style={{ padding: "40px", fontFamily: "Arial", maxWidth: "800px", margin: "0 auto", textAlign: "center" }}>
+    <div style={{
+      padding: "40px",
+      fontFamily: "Arial",
+      maxWidth: "800px",
+      margin: "0 auto",
+      textAlign: "center"
+    }}>
       <h1 style={{ marginBottom: "30px", color: "#2c3e50" }}>
         Mini Medical App
       </h1>
@@ -33,11 +40,40 @@ export default function App() {
           </div>
         } />
 
-        <Route path="/create" element={<PatientForm refresh={() => setRefresh((r) => !r)} />} />
-        <Route path="/list" element={<PatientList refreshTrigger={refresh} mode="list" />} />
-        <Route path="/delete" element={<PatientList refreshTrigger={refresh} mode="delete" onDelete={handleDelete} />} />
-        <Route path="/update" element={<PatientList refreshTrigger={refresh} mode="update" />} />
-        <Route path="/print" element={<PatientList refreshTrigger={refresh} mode="print" onPrint={handlePrint} />} />
+        <Route path="/create" element={
+          <>
+            <BackButton />
+            <PatientForm refresh={() => setRefresh((r) => !r)} />
+          </>
+        } />
+
+        <Route path="/list" element={
+          <>
+            <BackButton />
+            <PatientList refreshTrigger={refresh} mode="list" />
+          </>
+        } />
+
+        <Route path="/delete" element={
+          <>
+            <BackButton />
+            <PatientList refreshTrigger={refresh} mode="delete" onDelete={handleDelete} />
+          </>
+        } />
+
+        <Route path="/update" element={
+          <>
+            <BackButton />
+            <PatientList refreshTrigger={refresh} mode="update" />
+          </>
+        } />
+
+        <Route path="/print" element={
+          <>
+            <BackButton />
+            <PatientList refreshTrigger={refresh} mode="print" onPrint={handlePrint} />
+          </>
+        } />
       </Routes>
     </div>
   );
