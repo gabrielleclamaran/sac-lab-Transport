@@ -2,8 +2,12 @@ from flask import Blueprint, request, jsonify, send_file
 from .models import Patient
 from . import db
 from .pdf_utils import generate_patient_pdf
+from werkzeug.utils import secure_filename
+import os
 
 bp = Blueprint("api", __name__)
+UPLOAD_FOLDER = "zoll_uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @bp.route("/patients", methods=["GET"])
 def get_patients():
@@ -39,18 +43,29 @@ def get_patients():
             "departure_fio2": p.departure_fio2,
             "departure_blood_pressure": p.departure_blood_pressure,
             "departure_temperature": p.departure_temperature,
-            "departure_glasgow_score": p.departure_glasgow_score
+            "departure_glasgow_score": p.departure_glasgow_score,
+            "zoll_csv_filename": p.zoll_csv_filename
         } for p in patients
     ])
 
 @bp.route("/patients", methods=["POST"])
 def create_patient():
-    data = request.json
+    if request.content_type.startswith("multipart/form-data"):
+        data = request.form.to_dict()
+        file = request.files.get("zoll_csv")
+        filename = None
+        if file:
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(UPLOAD_FOLDER, filename))
+    else:
+        data = request.json
+        filename = None
+
     new_patient = Patient(
         name=data["name"],
-        age=data["age"],
+        age=int(data["age"]),
         sex=data["sex"],
-        weight_kg=data.get("weight_kg"),
+        weight_kg=float(data.get("weight_kg") or 0),
         transfer_call_date=data.get("transfer_call_date"),
         transfer_call_time=data.get("transfer_call_time"),
         referring_hospital=data.get("referring_hospital"),
@@ -75,7 +90,8 @@ def create_patient():
         departure_fio2=data.get("departure_fio2"),
         departure_blood_pressure=data.get("departure_blood_pressure"),
         departure_temperature=data.get("departure_temperature"),
-        departure_glasgow_score=data.get("departure_glasgow_score")
+        departure_glasgow_score=data.get("departure_glasgow_score"),
+        zoll_csv_filename=filename
     )
     db.session.add(new_patient)
     db.session.commit()
@@ -98,15 +114,12 @@ def get_patient_pdf(id):
         download_name=f"patient_{id}.pdf",
         mimetype='application/pdf'
     )
+
 @bp.route("/patients/<int:id>", methods=["PUT"])
 def update_patient(id):
     patient = Patient.query.get_or_404(id)
     data = request.json
-
-    # Exemple simple : on autorise uniquement la mise à jour du nom
     if "name" in data:
         patient.name = data["name"]
-
     db.session.commit()
     return jsonify({"message": "Patient updated"})
-

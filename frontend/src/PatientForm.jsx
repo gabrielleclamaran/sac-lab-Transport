@@ -1,7 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
 
-// À remplir avec tes listes habituelles
 const hospitalOptions = [ /* ... */ ];
 const transportOptions = [ "01-MCH", "02-HSJ", "03-CHUS", "04-CHUL", "05-Centre référant", "06-EVAQ", "07-Autre" ];
 const diagnosisOptions = [ /* ... */ ];
@@ -19,14 +18,31 @@ export default function PatientForm({ refresh }) {
     departure_heart_rate: "", departure_respiratory_rate: "", departure_saturation: "", departure_fio2: "",
     departure_blood_pressure: "", departure_temperature: "", departure_glasgow_score: ""
   });
+  const [csvFile, setCsvFile] = useState(null);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleFileChange = (e) => setCsvFile(e.target.files[0]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await axios.post("http://localhost:5050/patients", form);
-    setForm({ ...form, name: "", age: "", weight_kg: "", transfer_call_date: "", transfer_call_time: "", referring_hospital: "", other_details: "", transporting_hospital: "", transfer_reason: "", transfer_reason_other: "", transport_team_diagnosis: "", secondary_diagnosis: "", transport_team_other: "", comorbidities: "", heart_rate: "", respiratory_rate: "", saturation: "", fio2: "", blood_pressure: "", temperature: "", glasgow_score: "", departure_heart_rate: "", departure_respiratory_rate: "", departure_saturation: "", departure_fio2: "", departure_blood_pressure: "", departure_temperature: "", departure_glasgow_score: "" });
-    refresh();
+    const formData = new FormData();
+    Object.entries(form).forEach(([key, val]) => formData.append(key, val ?? ""));
+    if (csvFile) formData.append("zoll_csv", csvFile);
+
+    try {
+      await axios.post("http://localhost:5050/patients", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      refresh();
+    } catch (err) {
+      console.error("Form submission failed:", err);
+    }
+
+    setForm({
+      ...form,
+      name: "", age: "", weight_kg: "", transfer_call_date: "", transfer_call_time: "", referring_hospital: "", other_details: "", transporting_hospital: "", transfer_reason: "", transfer_reason_other: "", transport_team_diagnosis: "", secondary_diagnosis: "", transport_team_other: "", comorbidities: "", heart_rate: "", respiratory_rate: "", saturation: "", fio2: "", blood_pressure: "", temperature: "", glasgow_score: "", departure_heart_rate: "", departure_respiratory_rate: "", departure_saturation: "", departure_fio2: "", departure_blood_pressure: "", departure_temperature: "", departure_glasgow_score: ""
+    });
+    setCsvFile(null);
   };
 
   return (
@@ -72,33 +88,26 @@ export default function PatientForm({ refresh }) {
             <option value="">-- Sélectionner --</option>
             {diagnosisOptions.map((d, i) => <option key={i} value={d}>{d}</option>)}
           </select>
-
           <input name="transfer_reason_other" value={form.transfer_reason_other} onChange={handleChange} placeholder="Si autre, à préciser (CH référent)" />
-
           <label>Diagnostic principal équipe transport</label>
           <select name="transport_team_diagnosis" value={form.transport_team_diagnosis} onChange={handleChange}>
             <option value="">-- Sélectionner --</option>
             {diagnosisOptions.map((d, i) => <option key={i} value={d}>{d}</option>)}
           </select>
-
           <label>Diagnostic secondaire</label>
           <select name="secondary_diagnosis" value={form.secondary_diagnosis} onChange={handleChange}>
             <option value="">-- Sélectionner --</option>
             {diagnosisOptions.map((d, i) => <option key={i} value={d}>{d}</option>)}
           </select>
-
           <input name="transport_team_other" value={form.transport_team_other} onChange={handleChange} placeholder="Si autre, à préciser (équipe transport)" />
-
           <textarea name="comorbidities" value={form.comorbidities} onChange={handleChange} placeholder="Co-morbidités significatives" />
         </div>
       </fieldset>
 
-      {/* VITAUX ARRIVÉE + DÉPART */}
+      {/* Vital signs */}
       <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "space-between" }}>
-
-        {/* À l'arrivée */}
         <fieldset style={{ ...fieldsetStyle, flex: "1 1 45%" }}>
-          <legend style={legendStyle}>Signes vitaux à l'arrivée au CH référent</legend>
+          <legend style={legendStyle}>Signes vitaux à l'arrivée</legend>
           <div style={columnStyle}>
             <input name="heart_rate" value={form.heart_rate} onChange={handleChange} placeholder="Fréquence cardiaque" />
             <input name="respiratory_rate" value={form.respiratory_rate} onChange={handleChange} placeholder="Rythme respiratoire" />
@@ -110,9 +119,8 @@ export default function PatientForm({ refresh }) {
           </div>
         </fieldset>
 
-        {/* Au départ */}
         <fieldset style={{ ...fieldsetStyle, flex: "1 1 45%" }}>
-          <legend style={legendStyle}>Signes vitaux au départ du CH référent</legend>
+          <legend style={legendStyle}>Signes vitaux au départ</legend>
           <div style={columnStyle}>
             <input name="departure_heart_rate" value={form.departure_heart_rate} onChange={handleChange} placeholder="Fréquence cardiaque" />
             <input name="departure_respiratory_rate" value={form.departure_respiratory_rate} onChange={handleChange} placeholder="Rythme respiratoire" />
@@ -123,8 +131,13 @@ export default function PatientForm({ refresh }) {
             <input name="departure_glasgow_score" value={form.departure_glasgow_score} onChange={handleChange} placeholder="Score de Glasgow" />
           </div>
         </fieldset>
-
       </div>
+
+      {/* CSV upload */}
+      <fieldset style={fieldsetStyle}>
+        <legend style={legendStyle}>Fichier Zoll (CSV)</legend>
+        <input type="file" accept=".csv" onChange={handleFileChange} />
+      </fieldset>
 
       <button type="submit" style={{ width: "200px", alignSelf: "center", marginTop: "20px" }}>Add Patient</button>
     </form>
@@ -156,4 +169,3 @@ const columnStyle = {
   flexDirection: "column",
   gap: "10px"
 };
-

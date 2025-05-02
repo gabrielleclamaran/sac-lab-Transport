@@ -1,5 +1,7 @@
 from reportlab.pdfgen import canvas
 from io import BytesIO
+import os
+import csv
 
 def generate_patient_pdf(patient):
     buffer = BytesIO()
@@ -37,9 +39,38 @@ def generate_patient_pdf(patient):
     c.drawString(100, y, "Signes vitaux à l’arrivée au CH référent"); y -= 25
     c.setFont("Helvetica", 12)
     c.drawString(100, y, f"FC: {patient.heart_rate}, RR: {patient.respiratory_rate}, Sat: {patient.saturation}, FiO2: {patient.fio2}"); y -= 20
-    c.drawString(100, y, f"TA: {patient.blood_pressure}, Température: {patient.temperature}, Glasgow: {patient.glasgow_score}"); y -= 20
+    c.drawString(100, y, f"TA: {patient.blood_pressure}, Température: {patient.temperature}, Glasgow: {patient.glasgow_score}"); y -= 30
+
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(100, y, "Signes vitaux au départ du CH référent"); y -= 25
+    c.setFont("Helvetica", 12)
+    c.drawString(100, y, f"FC: {patient.departure_heart_rate}, RR: {patient.departure_respiratory_rate}, Sat: {patient.departure_saturation}, FiO2: {patient.departure_fio2}"); y -= 20
+    c.drawString(100, y, f"TA: {patient.departure_blood_pressure}, Température: {patient.departure_temperature}, Glasgow: {patient.departure_glasgow_score}"); y -= 30
+
+    if patient.zoll_csv_filename:
+        csv_path = os.path.join("zoll_uploads", patient.zoll_csv_filename)
+        if os.path.exists(csv_path):
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(100, y, "Zoll Data (CSV)"); y -= 20
+            c.setFont("Helvetica", 10)
+            try:
+                with open(csv_path, newline="") as csvfile:
+                    reader = csv.reader(csvfile)
+                    for row in reader:
+                        line = ", ".join(row)
+                        if y < 50:
+                            c.showPage()
+                            y = 800
+                            c.setFont("Helvetica", 10)
+                        c.drawString(100, y, line[:100])  # crop long lines
+                        y -= 12
+            except Exception as e:
+                if y < 50:
+                    c.showPage()
+                    y = 800
+                c.setFont("Helvetica", 12)
+                c.drawString(100, y, f"[Error reading CSV: {str(e)}]")
 
     c.save()
     buffer.seek(0)
     return buffer
-

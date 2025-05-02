@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile.backend
     ports:
       - "5050:5000"
+    volumes:
+      - ./zoll_uploads:/app/zoll_uploads  # ← Mount CSV folder
     depends_on:
       - db
     environment:
