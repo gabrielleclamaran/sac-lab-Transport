@@ -9,6 +9,7 @@ bp = Blueprint("api", __name__)
 UPLOAD_FOLDER = "zoll_uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+
 @bp.route("/patients", methods=["GET"])
 def get_patients():
     patients = Patient.query.all()
@@ -47,6 +48,7 @@ def get_patients():
             "zoll_csv_filename": p.zoll_csv_filename
         } for p in patients
     ])
+
 
 @bp.route("/patients", methods=["POST"])
 def create_patient():
@@ -97,12 +99,36 @@ def create_patient():
     db.session.commit()
     return jsonify({ "message": "Patient created" }), 201
 
+
 @bp.route("/patients/<int:id>", methods=["DELETE"])
 def delete_patient(id):
     p = Patient.query.get_or_404(id)
     db.session.delete(p)
     db.session.commit()
     return jsonify({ "message": "Patient deleted" })
+
+
+@bp.route("/patients/<int:id>", methods=["PUT"])
+def update_patient(id):
+    patient = Patient.query.get_or_404(id)
+    data = request.json
+
+    for field in [
+        "name", "age", "sex", "weight_kg", "transfer_call_date", "transfer_call_time",
+        "referring_hospital", "other_details", "transporting_hospital", "transfer_reason",
+        "transfer_reason_other", "transport_team_diagnosis", "secondary_diagnosis",
+        "transport_team_other", "comorbidities", "heart_rate", "respiratory_rate",
+        "saturation", "fio2", "blood_pressure", "temperature", "glasgow_score",
+        "departure_heart_rate", "departure_respiratory_rate", "departure_saturation",
+        "departure_fio2", "departure_blood_pressure", "departure_temperature",
+        "departure_glasgow_score"
+    ]:
+        if field in data:
+            setattr(patient, field, data[field])
+
+    db.session.commit()
+    return jsonify({"message": "Patient updated"})
+
 
 @bp.route("/patients/<int:id>/pdf", methods=["GET"])
 def get_patient_pdf(id):
@@ -114,12 +140,3 @@ def get_patient_pdf(id):
         download_name=f"patient_{id}.pdf",
         mimetype='application/pdf'
     )
-
-@bp.route("/patients/<int:id>", methods=["PUT"])
-def update_patient(id):
-    patient = Patient.query.get_or_404(id)
-    data = request.json
-    if "name" in data:
-        patient.name = data["name"]
-    db.session.commit()
-    return jsonify({"message": "Patient updated"})

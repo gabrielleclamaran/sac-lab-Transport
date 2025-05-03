@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 export default function PatientList({ refreshTrigger, mode, onDelete, onPrint }) {
   const [patients, setPatients] = useState([]);
-  const [editPatient, setEditPatient] = useState(null);
-  const [updatedName, setUpdatedName] = useState("");
   const [searchId, setSearchId] = useState("");
+  const navigate = useNavigate();
 
   const fetchPatients = async () => {
     const res = await axios.get("http://localhost:5050/patients");
@@ -15,12 +15,6 @@ export default function PatientList({ refreshTrigger, mode, onDelete, onPrint })
   useEffect(() => {
     fetchPatients();
   }, [refreshTrigger]);
-
-  const handleUpdate = async (id) => {
-    await axios.put(`http://localhost:5050/patients/${id}`, { name: updatedName });
-    setEditPatient(null);
-    fetchPatients();
-  };
 
   const filteredPatients = searchId
     ? patients.filter((p) => p.id.toString() === searchId)
@@ -59,24 +53,7 @@ export default function PatientList({ refreshTrigger, mode, onDelete, onPrint })
               )}
 
               {mode === "update" && (
-                <>
-                  {editPatient === p.id ? (
-                    <>
-                      <input
-                        value={updatedName}
-                        onChange={(e) => setUpdatedName(e.target.value)}
-                        placeholder="Nouveau nom"
-                      />
-                      <button onClick={() => handleUpdate(p.id)}>Valider</button>
-                      <button onClick={() => setEditPatient(null)}>Annuler</button>
-                    </>
-                  ) : (
-                    <button onClick={() => {
-                      setEditPatient(p.id);
-                      setUpdatedName(p.name);
-                    }}>Modifier</button>
-                  )}
-                </>
+                <button onClick={() => navigate(`/update/${p.id}`)}>Modifier</button>
               )}
             </div>
           </li>

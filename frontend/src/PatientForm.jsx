@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const hospitalOptions = [ /* ... */ ];
-const transportOptions = [ "01-MCH", "02-HSJ", "03-CHUS", "04-CHUL", "05-Centre référant", "06-EVAQ", "07-Autre" ];
-const diagnosisOptions = [ /* ... */ ];
+const hospitalOptions = [/* ... your hospital list ... */];
+const transportOptions = ["01-MCH", "02-HSJ", "03-CHUS", "04-CHUL", "05-Centre référant", "06-EVAQ", "07-Autre"];
+const diagnosisOptions = [/* ... your diagnosis list ... */];
 
 export default function PatientForm({ refresh }) {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const isEditMode = Boolean(id);
+
   const [form, setForm] = useState({
     name: "", age: "", sex: "Male", weight_kg: "",
     transfer_call_date: "", transfer_call_time: "",
@@ -18,31 +23,54 @@ export default function PatientForm({ refresh }) {
     departure_heart_rate: "", departure_respiratory_rate: "", departure_saturation: "", departure_fio2: "",
     departure_blood_pressure: "", departure_temperature: "", departure_glasgow_score: ""
   });
+
   const [csvFile, setCsvFile] = useState(null);
+
+  useEffect(() => {
+    if (isEditMode) {
+      axios.get(`http://localhost:5050/patients`)
+        .then((res) => {
+          const patient = res.data.find(p => p.id === parseInt(id));
+          if (patient) {
+            setForm(patient);
+          } else {
+            alert("Patient introuvable");
+            navigate("/update");
+          }
+        });
+    }
+  }, [id]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
   const handleFileChange = (e) => setCsvFile(e.target.files[0]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const formData = new FormData();
-    Object.entries(form).forEach(([key, val]) => formData.append(key, val ?? ""));
-    if (csvFile) formData.append("zoll_csv", csvFile);
 
-    try {
-      await axios.post("http://localhost:5050/patients", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      refresh();
-    } catch (err) {
-      console.error("Form submission failed:", err);
+    if (isEditMode) {
+      try {
+        await axios.put(`http://localhost:5050/patients/${id}`, form);
+        alert("Patient mis à jour");
+      } catch (err) {
+        console.error("Update failed:", err);
+      }
+    } else {
+      const formData = new FormData();
+      Object.entries(form).forEach(([key, val]) => formData.append(key, val ?? ""));
+      if (csvFile) formData.append("zoll_csv", csvFile);
+
+      try {
+        await axios.post("http://localhost:5050/patients", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        alert("Patient ajouté");
+      } catch (err) {
+        console.error("Form submission failed:", err);
+      }
     }
 
-    setForm({
-      ...form,
-      name: "", age: "", weight_kg: "", transfer_call_date: "", transfer_call_time: "", referring_hospital: "", other_details: "", transporting_hospital: "", transfer_reason: "", transfer_reason_other: "", transport_team_diagnosis: "", secondary_diagnosis: "", transport_team_other: "", comorbidities: "", heart_rate: "", respiratory_rate: "", saturation: "", fio2: "", blood_pressure: "", temperature: "", glasgow_score: "", departure_heart_rate: "", departure_respiratory_rate: "", departure_saturation: "", departure_fio2: "", departure_blood_pressure: "", departure_temperature: "", departure_glasgow_score: ""
-    });
-    setCsvFile(null);
+    refresh();
+    navigate("/list");
   };
 
   return (
@@ -104,7 +132,7 @@ export default function PatientForm({ refresh }) {
         </div>
       </fieldset>
 
-      {/* Vital signs */}
+      {/* Vital Signs */}
       <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "space-between" }}>
         <fieldset style={{ ...fieldsetStyle, flex: "1 1 45%" }}>
           <legend style={legendStyle}>Signes vitaux à l'arrivée</legend>
@@ -133,13 +161,17 @@ export default function PatientForm({ refresh }) {
         </fieldset>
       </div>
 
-      {/* CSV upload */}
-      <fieldset style={fieldsetStyle}>
-        <legend style={legendStyle}>Fichier Zoll (CSV)</legend>
-        <input type="file" accept=".csv" onChange={handleFileChange} />
-      </fieldset>
+      {/* CSV */}
+      {!isEditMode && (
+        <fieldset style={fieldsetStyle}>
+          <legend style={legendStyle}>Fichier Zoll (CSV)</legend>
+          <input type="file" accept=".csv" onChange={handleFileChange} />
+        </fieldset>
+      )}
 
-      <button type="submit" style={{ width: "200px", alignSelf: "center", marginTop: "20px" }}>Add Patient</button>
+      <button type="submit" style={{ width: "200px", alignSelf: "center", marginTop: "20px" }}>
+        {isEditMode ? "Mettre à jour" : "Ajouter"}
+      </button>
     </form>
   );
 }

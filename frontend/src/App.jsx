@@ -47,6 +47,13 @@ export default function App() {
           </>
         } />
 
+        <Route path="/update/:id" element={
+          <>
+            <BackButton />
+            <PatientForm refresh={() => setRefresh((r) => !r)} />
+          </>
+        } />
+
         <Route path="/list" element={
           <>
             <BackButton />
