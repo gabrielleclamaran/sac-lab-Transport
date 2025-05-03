@@ -1,17 +1,70 @@
 from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+from datetime import datetime
+import matplotlib.pyplot as plt
 import os
 import csv
 
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib import colors
+LOGO_PATH = "static/logo.png"
+UPLOAD_FOLDER = "zoll_uploads"
+
+
+def generate_bpm_chart_from_csv(filepath: str) -> BytesIO:
+    timestamps = []
+    bpms = []
+
+    with open(filepath, encoding="ISO-8859-1") as f:
+        next(f)
+        for line in f:
+            parts = line.strip().split(",")
+            if len(parts) < 3:
+                continue
+            date_str, time_str, bpm_raw = parts[0], parts[1], parts[2]
+            try:
+                fr_months = {
+                    "janv.": "Jan", "févr.": "Feb", "mars": "Mar", "avr.": "Apr",
+                    "mai": "May", "juin": "Jun", "juil.": "Jul", "août": "Aug",
+                    "sept.": "Sep", "oct.": "Oct", "nov.": "Nov", "déc.": "Dec"
+                }
+                for fr, en in fr_months.items():
+                    date_str = date_str.replace(fr, en)
+                ts = datetime.strptime(f"{date_str} {time_str}", "%d-%b-%y %H:%M")
+                bpm = int("".join(filter(str.isdigit, bpm_raw)))
+                timestamps.append(ts)
+                bpms.append(bpm)
+            except:
+                continue
+
+    if not timestamps:
+        raise ValueError("No valid BPM data found")
+
+    plt.figure(figsize=(10, 3))
+    plt.plot(timestamps, bpms, marker="o", linestyle="-")
+    plt.title("Heart Rate (BPM) Over Time")
+    plt.xlabel("Time")
+    plt.ylabel("BPM")
+    plt.grid(True)
+    plt.tight_layout()
+
+    buf = BytesIO()
+    plt.savefig(buf, format="png")
+    buf.seek(0)
+    plt.close()
+    return buf
+
 
 def generate_patient_pdf(patient):
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
     styles = getSampleStyleSheet()
+
+    if os.path.exists(LOGO_PATH):
+        elements.append(Image(LOGO_PATH, width=180, height=80))
+        elements.append(Spacer(1, 20))
 
     # Patient info
     elements.append(Paragraph("Patient Information", styles['Heading1']))
@@ -50,35 +103,17 @@ def generate_patient_pdf(patient):
     elements.append(Paragraph(f"TA: {patient.departure_blood_pressure}, Température: {patient.departure_temperature}, Glasgow: {patient.departure_glasgow_score}", styles['Normal']))
     elements.append(Spacer(1, 20))
 
-    # Add CSV as table if available
+    # CSV trend chart (BPM)
     if patient.zoll_csv_filename:
-        csv_path = os.path.join("zoll_uploads", patient.zoll_csv_filename)
-        if os.path.exists(csv_path):
+        chart_path = os.path.join(UPLOAD_FOLDER, patient.zoll_csv_filename)
+        if os.path.exists(chart_path):
             try:
-                with open(csv_path, newline="") as csvfile:
-                    reader = csv.reader(csvfile)
-                    data = list(reader)
-
-                if data:
-                    elements.append(Paragraph("Zoll Data (CSV Table)", styles['Heading2']))
-
-                    usable_width = 500
-                    num_cols = len(data[0])
-                    col_width = usable_width / num_cols if num_cols else 60
-
-                    table = Table(data, colWidths=[col_width] * num_cols, repeatRows=1)
-                    table.setStyle(TableStyle([
-                        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-                        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                        ('FONTSIZE', (0, 0), (-1, -1), 6),
-                        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                    ]))
-                    elements.append(table)
+                elements.append(Paragraph("Heart Rate Trend (from CSV)", styles['Heading2']))
+                chart = generate_bpm_chart_from_csv(chart_path)
+                elements.append(Image(chart, width=480, height=150))
+                elements.append(Spacer(1, 20))
             except Exception as e:
-                elements.append(Paragraph(f"[Error rendering CSV table: {str(e)}]", styles['Normal']))
+                elements.append(Paragraph(f"[Error generating chart: {str(e)}]", styles['Normal']))
 
     doc.build(elements)
     buffer.seek(0)
