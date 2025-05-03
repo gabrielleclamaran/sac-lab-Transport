@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 
-const hospitalOptions = [/* ... your hospital list ... */];
+const hospitalOptions = ["CHU Sainte-Justine", "CHUL", "CHUS", "HME", "Autre"];
 const transportOptions = ["01-MCH", "02-HSJ", "03-CHUS", "04-CHUL", "05-Centre référant", "06-EVAQ", "07-Autre"];
-const diagnosisOptions = [/* ... your diagnosis list ... */];
+const diagnosisOptions = ["Trauma crânien", "Sepsis", "Crise épileptique", "Insuffisance respiratoire", "Autre"];
 
 export default function PatientForm({ refresh }) {
   const { id } = useParams();
@@ -47,36 +47,32 @@ export default function PatientForm({ refresh }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (isEditMode) {
-      try {
-        await axios.put(`http://localhost:5050/patients/${id}`, form);
-        alert("Patient mis à jour");
-      } catch (err) {
-        console.error("Update failed:", err);
-      }
-    } else {
-      const formData = new FormData();
-      Object.entries(form).forEach(([key, val]) => formData.append(key, val ?? ""));
-      if (csvFile) formData.append("zoll_csv", csvFile);
+    const formData = new FormData();
+    Object.entries(form).forEach(([key, val]) => formData.append(key, val ?? ""));
+    if (csvFile) formData.append("zoll_csv", csvFile);
 
-      try {
+    try {
+      if (isEditMode) {
+        await axios.put(`http://localhost:5050/patients/${id}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+        alert("Patient mis à jour");
+      } else {
         await axios.post("http://localhost:5050/patients", formData, {
           headers: { "Content-Type": "multipart/form-data" },
         });
         alert("Patient ajouté");
-      } catch (err) {
-        console.error("Form submission failed:", err);
       }
+      refresh();
+      navigate("/list");
+    } catch (err) {
+      console.error("Erreur lors de l'envoi du formulaire:", err);
     }
-
-    refresh();
-    navigate("/list");
   };
 
   return (
     <form onSubmit={handleSubmit} style={{ maxWidth: "1200px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }}>
 
-      {/* Identification */}
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Identification</legend>
         <div style={rowStyle}>
@@ -89,7 +85,6 @@ export default function PatientForm({ refresh }) {
         </div>
       </fieldset>
 
-      {/* Transport */}
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Transport</legend>
         <div style={rowStyle}>
@@ -107,7 +102,6 @@ export default function PatientForm({ refresh }) {
         </div>
       </fieldset>
 
-      {/* Diagnostic */}
       <fieldset style={fieldsetStyle}>
         <legend style={legendStyle}>Diagnostic</legend>
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "center" }}>
@@ -132,7 +126,6 @@ export default function PatientForm({ refresh }) {
         </div>
       </fieldset>
 
-      {/* Vital Signs */}
       <div style={{ display: "flex", gap: "20px", flexWrap: "wrap", justifyContent: "space-between" }}>
         <fieldset style={{ ...fieldsetStyle, flex: "1 1 45%" }}>
           <legend style={legendStyle}>Signes vitaux à l'arrivée</legend>
@@ -161,13 +154,10 @@ export default function PatientForm({ refresh }) {
         </fieldset>
       </div>
 
-      {/* CSV */}
-      {!isEditMode && (
-        <fieldset style={fieldsetStyle}>
-          <legend style={legendStyle}>Fichier Zoll (CSV)</legend>
-          <input type="file" accept=".csv" onChange={handleFileChange} />
-        </fieldset>
-      )}
+      <fieldset style={fieldsetStyle}>
+        <legend style={legendStyle}>Fichier Zoll (CSV)</legend>
+        <input type="file" accept=".csv" onChange={handleFileChange} />
+      </fieldset>
 
       <button type="submit" style={{ width: "200px", alignSelf: "center", marginTop: "20px" }}>
         {isEditMode ? "Mettre à jour" : "Ajouter"}

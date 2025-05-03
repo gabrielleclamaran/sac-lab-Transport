@@ -100,18 +100,19 @@ def create_patient():
     return jsonify({ "message": "Patient created" }), 201
 
 
-@bp.route("/patients/<int:id>", methods=["DELETE"])
-def delete_patient(id):
-    p = Patient.query.get_or_404(id)
-    db.session.delete(p)
-    db.session.commit()
-    return jsonify({ "message": "Patient deleted" })
-
-
 @bp.route("/patients/<int:id>", methods=["PUT"])
 def update_patient(id):
     patient = Patient.query.get_or_404(id)
-    data = request.json
+
+    if request.content_type.startswith("multipart/form-data"):
+        data = request.form.to_dict()
+        file = request.files.get("zoll_csv")
+        if file:
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(UPLOAD_FOLDER, filename))
+            patient.zoll_csv_filename = filename
+    else:
+        data = request.json
 
     for field in [
         "name", "age", "sex", "weight_kg", "transfer_call_date", "transfer_call_time",
@@ -127,7 +128,15 @@ def update_patient(id):
             setattr(patient, field, data[field])
 
     db.session.commit()
-    return jsonify({"message": "Patient updated"})
+    return jsonify({ "message": "Patient updated" })
+
+
+@bp.route("/patients/<int:id>", methods=["DELETE"])
+def delete_patient(id):
+    p = Patient.query.get_or_404(id)
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({ "message": "Patient deleted" })
 
 
 @bp.route("/patients/<int:id>/pdf", methods=["GET"])
