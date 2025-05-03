@@ -3,6 +3,7 @@ import PatientForm from "./PatientForm";
 import PatientList from "./PatientList";
 import { useState } from "react";
 import BackButton from "./BackButton";
+import PatientView from "./PatientView";
 
 export default function App() {
   const navigate = useNavigate();
@@ -51,6 +52,13 @@ export default function App() {
           <>
             <BackButton />
             <PatientForm refresh={() => setRefresh((r) => !r)} />
+          </>
+        } />
+
+        <Route path="/view/:id" element={
+          <>
+            <BackButton />
+            <PatientView />
           </>
         } />
 
