@@ -36,3 +36,6 @@ class Patient(db.Model):
     departure_temperature = db.Column(db.String(50))
     departure_glasgow_score = db.Column(db.String(50))
 
+    zoll_csv_filename = db.Column(db.String(200))
+
+
