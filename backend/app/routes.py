@@ -1,12 +1,18 @@
 from flask import Blueprint, request, jsonify, send_file
 from .models import Patient
 from . import db
-from .pdf_utils import generate_patient_pdf
+from .pdf_utils import generate_pdf
+from werkzeug.utils import secure_filename
+import os
+from datetime import datetime
 
 bp = Blueprint("api", __name__)
+UPLOAD_FOLDER = "zoll_uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 
 @bp.route("/patients", methods=["GET"])
-def get_patients():
+def get_all_patients():
     patients = Patient.query.all()
     return jsonify([
         {
@@ -39,18 +45,30 @@ def get_patients():
             "departure_fio2": p.departure_fio2,
             "departure_blood_pressure": p.departure_blood_pressure,
             "departure_temperature": p.departure_temperature,
-            "departure_glasgow_score": p.departure_glasgow_score
+            "departure_glasgow_score": p.departure_glasgow_score,
+            "zoll_csv_filename": p.zoll_csv_filename
         } for p in patients
     ])
 
+
 @bp.route("/patients", methods=["POST"])
 def create_patient():
-    data = request.json
+    if request.content_type.startswith("multipart/form-data"):
+        data = request.form.to_dict()
+        file = request.files.get("zoll_csv")
+        filename = None
+        if file:
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(UPLOAD_FOLDER, filename))
+    else:
+        data = request.json
+        filename = None
+
     new_patient = Patient(
         name=data["name"],
-        age=data["age"],
+        age=int(data["age"]),
         sex=data["sex"],
-        weight_kg=data.get("weight_kg"),
+        weight_kg=float(data.get("weight_kg") or 0),
         transfer_call_date=data.get("transfer_call_date"),
         transfer_call_time=data.get("transfer_call_time"),
         referring_hospital=data.get("referring_hospital"),
@@ -75,26 +93,46 @@ def create_patient():
         departure_fio2=data.get("departure_fio2"),
         departure_blood_pressure=data.get("departure_blood_pressure"),
         departure_temperature=data.get("departure_temperature"),
-        departure_glasgow_score=data.get("departure_glasgow_score")
+        departure_glasgow_score=data.get("departure_glasgow_score"),
+        zoll_csv_filename=filename
     )
     db.session.add(new_patient)
     db.session.commit()
     return jsonify({ "message": "Patient created" }), 201
 
+
 @bp.route("/patients/<int:id>", methods=["DELETE"])
 def delete_patient(id):
-    p = Patient.query.get_or_404(id)
-    db.session.delete(p)
+    patient = Patient.query.get_or_404(id)
+    db.session.delete(patient)
     db.session.commit()
     return jsonify({ "message": "Patient deleted" })
+
 
 @bp.route("/patients/<int:id>/pdf", methods=["GET"])
 def get_patient_pdf(id):
     patient = Patient.query.get_or_404(id)
-    pdf_buffer = generate_patient_pdf(patient)
+
+    if patient.zoll_csv_filename:
+        csv_path = os.path.join(UPLOAD_FOLDER, patient.zoll_csv_filename)
+        if not os.path.exists(csv_path):
+            return jsonify({ "error": f"Fichier ZOLL introuvable à l'emplacement {csv_path}" }), 404
+    else:
+        csv_path = None
+
+    output_path = os.path.join(UPLOAD_FOLDER, f"rapport_patient_{id}.pdf")
+    transport_date = patient.transfer_call_date or datetime.today()
+    if isinstance(transport_date, str):
+        transport_date = datetime.strptime(transport_date, "%Y-%m-%d")
+
+    generate_pdf(output_path, patient.name, transport_date, csv_path)
+
+    if not os.path.exists(output_path):
+        return jsonify({ "error": f"Le rapport PDF n'a pas pu être généré." }), 500
+
     return send_file(
-        pdf_buffer,
+        output_path,
         as_attachment=True,
-        download_name=f"patient_{id}.pdf",
+        download_name=f"rapport_patient_{id}.pdf",
         mimetype='application/pdf'
     )
