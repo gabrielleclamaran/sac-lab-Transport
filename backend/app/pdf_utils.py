@@ -1,120 +1,80 @@
-from io import BytesIO
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import Table, TableStyle, SimpleDocTemplate, Paragraph, Spacer, Image, PageBreak
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from datetime import datetime
-import matplotlib.pyplot as plt
 import os
 import csv
 
 LOGO_PATH = "static/logo.png"
 UPLOAD_FOLDER = "zoll_uploads"
 
+def clean(val):
+    if not val or val.strip() == "---":
+        return "N/A"
+    return val.replace("[", "").replace("]", "").strip()
 
-def generate_bpm_chart_from_csv(filepath: str) -> BytesIO:
-    timestamps = []
-    bpms = []
+def parse_csv_to_table(csv_path):
+    table_data = [["Heure", "Fréquence cardiaque", "SpO₂", "TA (Sys/Dia)"]]
 
-    with open(filepath, encoding="ISO-8859-1") as f:
-        next(f)
-        for line in f:
-            parts = line.strip().split(",")
-            if len(parts) < 3:
-                continue
-            date_str, time_str, bpm_raw = parts[0], parts[1], parts[2]
-            try:
-                fr_months = {
-                    "janv.": "Jan", "févr.": "Feb", "mars": "Mar", "avr.": "Apr",
-                    "mai": "May", "juin": "Jun", "juil.": "Jul", "août": "Aug",
-                    "sept.": "Sep", "oct.": "Oct", "nov.": "Nov", "déc.": "Dec"
-                }
-                for fr, en in fr_months.items():
-                    date_str = date_str.replace(fr, en)
-                ts = datetime.strptime(f"{date_str} {time_str}", "%d-%b-%y %H:%M")
-                bpm = int("".join(filter(str.isdigit, bpm_raw)))
-                timestamps.append(ts)
-                bpms.append(bpm)
-            except:
-                continue
+    try:
+        with open(csv_path, encoding="ISO-8859-1") as f:
+            reader = csv.DictReader(f, delimiter=",")
+            for row in reader:
+                heure = clean(row.get("Heure (HH:MM)", ""))
+                fc = clean(row.get("FC/FP (BPM)", ""))
+                spo2 = clean(row.get("SpO2 (%)", ""))
+                sys = clean(row.get("PNI (mm Hg) (Sys)", ""))
+                dia = clean(row.get("PNI (mm Hg) (Dia)", ""))
+                ta = f"{sys}/{dia}" if sys != "N/A" and dia != "N/A" else "N/A"
 
-    if not timestamps:
-        raise ValueError("No valid BPM data found")
+                if any(val != "N/A" for val in [fc, spo2, ta]):
+                    table_data.append([heure, fc, spo2, ta])
+    except Exception as e:
+        table_data.append([f"Erreur : {str(e)}", "", "", ""])
 
-    plt.figure(figsize=(10, 3))
-    plt.plot(timestamps, bpms, marker="o", linestyle="-")
-    plt.title("Heart Rate (BPM) Over Time")
-    plt.xlabel("Time")
-    plt.ylabel("BPM")
-    plt.grid(True)
-    plt.tight_layout()
+    return table_data
 
-    buf = BytesIO()
-    plt.savefig(buf, format="png")
-    buf.seek(0)
-    plt.close()
-    return buf
-
-
-def generate_patient_pdf(patient):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
+def generate_pdf(output_path, patient_name, transport_date, csv_path):
+    doc = SimpleDocTemplate(output_path, pagesize=letter)
     elements = []
     styles = getSampleStyleSheet()
+    normal = styles["Normal"]
 
+    # Logo
     if os.path.exists(LOGO_PATH):
-        elements.append(Image(LOGO_PATH, width=180, height=80))
-        elements.append(Spacer(1, 20))
+        elements.append(Image(LOGO_PATH, width=150, height=60))
+        elements.append(Spacer(1, 12))
 
-    # Patient info
-    elements.append(Paragraph("Patient Information", styles['Heading1']))
-    elements.append(Paragraph(f"Name: {patient.name}", styles['Normal']))
-    elements.append(Paragraph(f"Age: {patient.age}", styles['Normal']))
-    elements.append(Paragraph(f"Sex: {patient.sex}", styles['Normal']))
-    elements.append(Paragraph(f"Weight (kg): {patient.weight_kg or 'N/A'}", styles['Normal']))
+    # En-tête
+    elements.append(Paragraph("<b>Résumé de transport pédiatrique</b>", styles["Title"]))
+    elements.append(Spacer(1, 12))
+    elements.append(Paragraph(f"Nom du patient : {patient_name}", normal))
+
+    if isinstance(transport_date, str):
+        try:
+            transport_date = datetime.strptime(transport_date, "%Y-%m-%d")
+        except:
+            transport_date = datetime.today()
+    elements.append(Paragraph(f"Date du transport : {transport_date.strftime('%d/%m/%Y')}", normal))
     elements.append(Spacer(1, 12))
 
-    # Transport info
-    elements.append(Paragraph("Transport", styles['Heading2']))
-    elements.append(Paragraph(f"Date: {patient.transfer_call_date} - Time: {patient.transfer_call_time}", styles['Normal']))
-    elements.append(Paragraph(f"Referring Hospital: {patient.referring_hospital}", styles['Normal']))
-    elements.append(Paragraph(f"Other: {patient.other_details}", styles['Normal']))
-    elements.append(Paragraph(f"Transporting Hospital: {patient.transporting_hospital}", styles['Normal']))
-    elements.append(Spacer(1, 12))
+    # Données cliniques
+    table_data = parse_csv_to_table(csv_path)
+    table = Table(table_data, colWidths=[80, 130, 80, 100])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('GRID', (0, 0), (-1, -1), 0.3, colors.black),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('TOPPADDING', (0, 0), (-1, 0), 5),
+    ]))
 
-    # Diagnostic
-    elements.append(Paragraph("Diagnostic", styles['Heading2']))
-    elements.append(Paragraph(f"Reason (CH référent): {patient.transfer_reason}", styles['Normal']))
-    elements.append(Paragraph(f"Other (référent): {patient.transfer_reason_other}", styles['Normal']))
-    elements.append(Paragraph(f"Diagnostic transport: {patient.transport_team_diagnosis}", styles['Normal']))
-    elements.append(Paragraph(f"Secondary: {patient.secondary_diagnosis}", styles['Normal']))
-    elements.append(Paragraph(f"Other (transport): {patient.transport_team_other}", styles['Normal']))
-    elements.append(Paragraph(f"Comorbidities: {patient.comorbidities}", styles['Normal']))
-    elements.append(Spacer(1, 12))
-
-    # Vital signs
-    elements.append(Paragraph("Signes vitaux à l’arrivée au CH référent", styles['Heading2']))
-    elements.append(Paragraph(f"FC: {patient.heart_rate}, RR: {patient.respiratory_rate}, Sat: {patient.saturation}, FiO2: {patient.fio2}", styles['Normal']))
-    elements.append(Paragraph(f"TA: {patient.blood_pressure}, Température: {patient.temperature}, Glasgow: {patient.glasgow_score}", styles['Normal']))
-    elements.append(Spacer(1, 12))
-
-    elements.append(Paragraph("Signes vitaux au départ du CH référent", styles['Heading2']))
-    elements.append(Paragraph(f"FC: {patient.departure_heart_rate}, RR: {patient.departure_respiratory_rate}, Sat: {patient.departure_saturation}, FiO2: {patient.departure_fio2}", styles['Normal']))
-    elements.append(Paragraph(f"TA: {patient.departure_blood_pressure}, Température: {patient.departure_temperature}, Glasgow: {patient.departure_glasgow_score}", styles['Normal']))
-    elements.append(Spacer(1, 20))
-
-    # CSV trend chart (BPM)
-    if patient.zoll_csv_filename:
-        chart_path = os.path.join(UPLOAD_FOLDER, patient.zoll_csv_filename)
-        if os.path.exists(chart_path):
-            try:
-                elements.append(Paragraph("Heart Rate Trend (from CSV)", styles['Heading2']))
-                chart = generate_bpm_chart_from_csv(chart_path)
-                elements.append(Image(chart, width=480, height=150))
-                elements.append(Spacer(1, 20))
-            except Exception as e:
-                elements.append(Paragraph(f"[Error generating chart: {str(e)}]", styles['Normal']))
+    elements.append(Paragraph("Signes vitaux extraits du moniteur :", styles["Heading2"]))
+    elements.append(table)
 
     doc.build(elements)
-    buffer.seek(0)
-    return buffer

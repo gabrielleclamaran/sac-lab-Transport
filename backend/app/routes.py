@@ -1,14 +1,14 @@
 from flask import Blueprint, request, jsonify, send_file
 from .models import Patient
 from . import db
-from .pdf_utils import generate_patient_pdf
+from .pdf_utils import generate_pdf
 from werkzeug.utils import secure_filename
+from datetime import datetime
 import os
 
 bp = Blueprint("api", __name__)
 UPLOAD_FOLDER = "zoll_uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
 
 @bp.route("/patients", methods=["GET"])
 def get_patients():
@@ -48,7 +48,6 @@ def get_patients():
             "zoll_csv_filename": p.zoll_csv_filename
         } for p in patients
     ])
-
 
 @bp.route("/patients", methods=["POST"])
 def create_patient():
@@ -99,53 +98,31 @@ def create_patient():
     db.session.commit()
     return jsonify({ "message": "Patient created" }), 201
 
-
-@bp.route("/patients/<int:id>", methods=["PUT"])
-def update_patient(id):
-    patient = Patient.query.get_or_404(id)
-
-    if request.content_type.startswith("multipart/form-data"):
-        data = request.form.to_dict()
-        file = request.files.get("zoll_csv")
-        if file:
-            filename = secure_filename(file.filename)
-            file.save(os.path.join(UPLOAD_FOLDER, filename))
-            patient.zoll_csv_filename = filename
-    else:
-        data = request.json
-
-    for field in [
-        "name", "age", "sex", "weight_kg", "transfer_call_date", "transfer_call_time",
-        "referring_hospital", "other_details", "transporting_hospital", "transfer_reason",
-        "transfer_reason_other", "transport_team_diagnosis", "secondary_diagnosis",
-        "transport_team_other", "comorbidities", "heart_rate", "respiratory_rate",
-        "saturation", "fio2", "blood_pressure", "temperature", "glasgow_score",
-        "departure_heart_rate", "departure_respiratory_rate", "departure_saturation",
-        "departure_fio2", "departure_blood_pressure", "departure_temperature",
-        "departure_glasgow_score"
-    ]:
-        if field in data:
-            setattr(patient, field, data[field])
-
-    db.session.commit()
-    return jsonify({ "message": "Patient updated" })
-
-
 @bp.route("/patients/<int:id>", methods=["DELETE"])
 def delete_patient(id):
-    p = Patient.query.get_or_404(id)
-    db.session.delete(p)
+    patient = Patient.query.get_or_404(id)
+    db.session.delete(patient)
     db.session.commit()
     return jsonify({ "message": "Patient deleted" })
-
 
 @bp.route("/patients/<int:id>/pdf", methods=["GET"])
 def get_patient_pdf(id):
     patient = Patient.query.get_or_404(id)
-    pdf_buffer = generate_patient_pdf(patient)
+
+    if not patient.zoll_csv_filename:
+        return jsonify({"error": "Aucun fichier ZOLL associé à ce patient"}), 400
+
+    csv_path = os.path.join(UPLOAD_FOLDER, patient.zoll_csv_filename.strip())
+
+    if not os.path.exists(csv_path):
+        return jsonify({"error": f"Fichier ZOLL introuvable à l'emplacement {csv_path}"}), 404
+
+    output_path = os.path.abspath(os.path.join(UPLOAD_FOLDER, f"rapport_patient_{id}.pdf"))
+    generate_pdf(output_path, patient.name, patient.transfer_call_date or datetime.today(), csv_path)
+
     return send_file(
-        pdf_buffer,
+        output_path,
         as_attachment=True,
-        download_name=f"patient_{id}.pdf",
+        download_name=f"rapport_patient_{id}.pdf",
         mimetype='application/pdf'
     )
