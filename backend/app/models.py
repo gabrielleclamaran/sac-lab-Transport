@@ -38,4 +38,5 @@ class Patient(db.Model):
 
     zoll_csv_filename = db.Column(db.String(200))
 
-
+    # ✅ Nouveau champ : notes du médecin / remarques (nullable pour compatibilité)
+    notes = db.Column(db.Text, nullable=True)

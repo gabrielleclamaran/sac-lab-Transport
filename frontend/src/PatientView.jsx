@@ -20,48 +20,117 @@ export default function PatientView() {
       });
   }, [id]);
 
-  if (!patient) return <p>Chargement...</p>;
+  if (!patient) return <p style={{ textAlign: "center", color: "#083464" }}>Chargement...</p>;
 
   return (
-    <div style={{ maxWidth: "800px", margin: "0 auto", padding: "30px", textAlign: "left" }}>
-      <h2>Dossier du patient : {patient.name}</h2>
+    <div style={containerStyle}>
+      <h2 style={titleStyle}>Dossier du patient : {patient.name}</h2>
 
-      <p><strong>ID :</strong> {patient.id}</p>
-      <p><strong>Âge :</strong> {patient.age}</p>
-      <p><strong>Sexe :</strong> {patient.sex}</p>
-      <p><strong>Poids :</strong> {patient.weight_kg ?? "N/A"} kg</p>
+      <Section title="Informations générales">
+        <p><strong>ID :</strong> {patient.id}</p>
+        <p><strong>Âge :</strong> {patient.age}</p>
+        <p><strong>Sexe :</strong> {patient.sex}</p>
+        <p><strong>Poids :</strong> {patient.weight_kg ?? "N/A"} kg</p>
+      </Section>
 
-      <h3>Transport</h3>
-      <p><strong>Date :</strong> {patient.transfer_call_date}</p>
-      <p><strong>Heure :</strong> {patient.transfer_call_time}</p>
-      <p><strong>CH Référent :</strong> {patient.referring_hospital}</p>
-      <p><strong>Autre :</strong> {patient.other_details}</p>
-      <p><strong>CH Transporteur :</strong> {patient.transporting_hospital}</p>
+      <Section title="Transport">
+        <p><strong>Date :</strong> {patient.transfer_call_date}</p>
+        <p><strong>Heure :</strong> {patient.transfer_call_time}</p>
+        <p><strong>CH Référent :</strong> {patient.referring_hospital}</p>
+        <p><strong>Autre :</strong> {patient.other_details}</p>
+        <p><strong>CH Transporteur :</strong> {patient.transporting_hospital}</p>
+      </Section>
 
-      <h3>Diagnostic</h3>
-      <p><strong>Diagnostic CH Référent :</strong> {patient.transfer_reason}</p>
-      <p><strong>Autre (référent) :</strong> {patient.transfer_reason_other}</p>
-      <p><strong>Diagnostic transport :</strong> {patient.transport_team_diagnosis}</p>
-      <p><strong>Secondaire :</strong> {patient.secondary_diagnosis}</p>
-      <p><strong>Autre (transport) :</strong> {patient.transport_team_other}</p>
-      <p><strong>Co-morbidités :</strong> {patient.comorbidities}</p>
+      <Section title="Diagnostic">
+        <p><strong>Diagnostic CH Référent :</strong> {patient.transfer_reason}</p>
+        <p><strong>Autre (référent) :</strong> {patient.transfer_reason_other}</p>
+        <p><strong>Diagnostic transport :</strong> {patient.transport_team_diagnosis}</p>
+        <p><strong>Secondaire :</strong> {patient.secondary_diagnosis}</p>
+        <p><strong>Autre (transport) :</strong> {patient.transport_team_other}</p>
+        <p><strong>Co-morbidités :</strong> {patient.comorbidities}</p>
+      </Section>
 
-      <h3>Signes vitaux à l’arrivée</h3>
-      <p>FC: {patient.heart_rate}, RR: {patient.respiratory_rate}, Sat: {patient.saturation}, FiO2: {patient.fio2}</p>
-      <p>TA: {patient.blood_pressure}, Temp: {patient.temperature}, Glasgow: {patient.glasgow_score}</p>
+      <Section title="Signes vitaux à l’arrivée">
+        <p>FC: {patient.heart_rate}, RR: {patient.respiratory_rate}, Sat: {patient.saturation}, FiO2: {patient.fio2}</p>
+        <p>TA: {patient.blood_pressure}, Temp: {patient.temperature}, Glasgow: {patient.glasgow_score}</p>
+      </Section>
 
-      <h3>Signes vitaux au départ</h3>
-      <p>FC: {patient.departure_heart_rate}, RR: {patient.departure_respiratory_rate}, Sat: {patient.departure_saturation}, FiO2: {patient.departure_fio2}</p>
-      <p>TA: {patient.departure_blood_pressure}, Temp: {patient.departure_temperature}, Glasgow: {patient.departure_glasgow_score}</p>
+      <Section title="Signes vitaux au départ">
+        <p>FC: {patient.departure_heart_rate}, RR: {patient.departure_respiratory_rate}, Sat: {patient.departure_saturation}, FiO2: {patient.departure_fio2}</p>
+        <p>TA: {patient.departure_blood_pressure}, Temp: {patient.departure_temperature}, Glasgow: {patient.departure_glasgow_score}</p>
+      </Section>
 
-      {patient.zoll_csv_filename && (
-        <>
-          <h3>Fichier Zoll</h3>
-          <p><em>{patient.zoll_csv_filename}</em></p>
-        </>
+      {patient.notes && patient.notes.trim() !== "" && (
+        <Section title="Notes du médecin">
+          <p style={{ whiteSpace: "pre-wrap" }}>{patient.notes}</p>
+        </Section>
       )}
 
-      <button onClick={() => navigate("/list")} style={{ marginTop: "20px" }}>Retour à la liste</button>
+      {patient.zoll_csv_filename && (
+        <Section title="Fichier Zoll">
+          <p><em>{patient.zoll_csv_filename}</em></p>
+        </Section>
+      )}
+
+      <div style={{ textAlign: "center", marginTop: "30px" }}>
+        <button 
+          onClick={() => navigate("/list")} 
+          style={buttonStyle}
+        >
+          ← Retour à la liste
+        </button>
+      </div>
     </div>
   );
 }
+
+function Section({ title, children }) {
+  return (
+    <fieldset style={sectionStyle}>
+      <legend style={legendStyle}>{title}</legend>
+      {children}
+    </fieldset>
+  );
+}
+
+/* === Styles === */
+const containerStyle = {
+  maxWidth: "900px",
+  margin: "0 auto",
+  padding: "30px",
+  fontFamily: "Arial, sans-serif",
+  backgroundColor: "white",
+  borderRadius: "12px",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+};
+
+const titleStyle = {
+  color: "#083464",
+  textAlign: "center",
+  marginBottom: "25px"
+};
+
+const sectionStyle = {
+  border: "2px solid #083464",
+  borderRadius: "12px",
+  padding: "15px 20px",
+  marginBottom: "20px",
+  backgroundColor: "#f9faff"
+};
+
+const legendStyle = {
+  fontWeight: "bold",
+  fontSize: "1.1rem",
+  color: "#083464",
+  padding: "0 8px"
+};
+
+const buttonStyle = {
+  backgroundColor: "#083464",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  padding: "12px 20px",
+  fontSize: "16px",
+  cursor: "pointer"
+};
