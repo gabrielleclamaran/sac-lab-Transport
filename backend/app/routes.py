@@ -61,6 +61,45 @@ def get_patients():
         } for p in patients
     ])
 
+@bp.route("/patients/<int:id>", methods=["GET"])
+def get_patient(id):
+    """Route pour récupérer un patient spécifique par ID"""
+    patient = Patient.query.get_or_404(id)
+    return jsonify({
+        "id": patient.id,
+        "name": patient.name,
+        "age": patient.age,
+        "sex": patient.sex,
+        "weight_kg": patient.weight_kg,
+        "transfer_call_date": patient.transfer_call_date,
+        "transfer_call_time": patient.transfer_call_time,
+        "referring_hospital": patient.referring_hospital,
+        "other_details": patient.other_details,
+        "transporting_hospital": patient.transporting_hospital,
+        "transfer_reason": patient.transfer_reason,
+        "transfer_reason_other": patient.transfer_reason_other,
+        "transport_team_diagnosis": patient.transport_team_diagnosis,
+        "secondary_diagnosis": patient.secondary_diagnosis,
+        "transport_team_other": patient.transport_team_other,
+        "comorbidities": patient.comorbidities,
+        "heart_rate": patient.heart_rate,
+        "respiratory_rate": patient.respiratory_rate,
+        "saturation": patient.saturation,
+        "fio2": patient.fio2,
+        "blood_pressure": patient.blood_pressure,
+        "temperature": patient.temperature,
+        "glasgow_score": patient.glasgow_score,
+        "departure_heart_rate": patient.departure_heart_rate,
+        "departure_respiratory_rate": patient.departure_respiratory_rate,
+        "departure_saturation": patient.departure_saturation,
+        "departure_fio2": patient.departure_fio2,
+        "departure_blood_pressure": patient.departure_blood_pressure,
+        "departure_temperature": patient.departure_temperature,
+        "departure_glasgow_score": patient.departure_glasgow_score,
+        "zoll_csv_filename": patient.zoll_csv_filename,
+        "notes": patient.notes,
+    })
+
 
 @bp.route("/patients", methods=["POST"])
 def create_patient():
@@ -111,7 +150,7 @@ def create_patient():
     )
     db.session.add(new_patient)
     db.session.commit()
-    return jsonify({"message": "Patient created"}), 201
+    return jsonify({"message": "Patient created", "id" : new_patient.id}), 201
 
 
 @bp.route("/patients/<int:id>", methods=["PUT"])

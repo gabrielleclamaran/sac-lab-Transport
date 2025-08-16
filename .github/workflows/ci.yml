@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect backend dir
+        id: setdir
+        run: |
+          if [ -d "backend/app" ]; then
+            echo "dir=backend" >> $GITHUB_OUTPUT
+          else
+            echo "dir=." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f "${{ steps.setdir.outputs.dir }}/requirements.txt" ]; then
+            pip install -r "${{ steps.setdir.outputs.dir }}/requirements.txt"
+          fi
+          pip install pytest pytest-cov flask flask_sqlalchemy flask_cors reportlab
+
+      - name: Run tests with coverage
+        working-directory: ${{ steps.setdir.outputs.dir }}
+        env:
+          PYTHONPATH: ${{ steps.setdir.outputs.dir }}:${{ env.PYTHONPATH }}
+        run: |
+          mkdir -p zoll_uploads
+          if [ "${{ steps.setdir.outputs.dir }}" = "backend" ] && [ -d "../tests" ]; then
+            pytest -q --cov=app --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html ../tests
+          else
+            pytest -q --cov=app --cov-report=term-missing:skip-covered --cov-report=xml --cov-report=html tests
+          fi
+
+      - name: Upload coverage html
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: ${{ steps.setdir.outputs.dir }}/htmlcov
+
+      - name: Upload coverage xml
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: ${{ steps.setdir.outputs.dir }}/coverage.xml
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: python-tests
+    if: ${{ hashFiles('frontend/package.json') != '' || hashFiles('package.json') != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect frontend dir
+        id: setfe
+        run: |
+          if [ -f "frontend/package.json" ]; then
+            echo "dir=frontend" >> $GITHUB_OUTPUT
+          else
+            echo "dir=." >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ${{ steps.setfe.outputs.dir }}/package-lock.json
+
+      - name: Install and build
+        working-directory: ${{ steps.setfe.outputs.dir }}
+        run: |
+          npm ci
+          npm run build --if-present
+          npm test --if-present
+
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: python-tests
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        if: ${{ hashFiles('Dockerfile.backend') != '' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.backend
+          push: false
+          tags: app/backend:ci
+
+      - name: Build frontend image
+        if: ${{ hashFiles('Dockerfile.frontend') != '' }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.frontend
+          push: false
+          tags: app/frontend:ci
+
