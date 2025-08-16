@@ -74,28 +74,34 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: python-tests
-    if: ${{ hashFiles('frontend/package.json') != '' || hashFiles('package.json') != '' }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect frontend dir
-        id: setfe
+      - name: Probe frontend presence
+        id: probe
         run: |
           if [ -f "frontend/package.json" ]; then
             echo "dir=frontend" >> $GITHUB_OUTPUT
+            echo "has_fe=true" >> $GITHUB_OUTPUT
+          elif [ -f "package.json" ]; then
+            echo "dir=." >> $GITHUB_OUTPUT
+            echo "has_fe=true" >> $GITHUB_OUTPUT
           else
             echo "dir=." >> $GITHUB_OUTPUT
+            echo "has_fe=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Set up Node
+        if: ${{ steps.probe.outputs.has_fe == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: ${{ steps.setfe.outputs.dir }}/package-lock.json
+          cache-dependency-path: ${{ steps.probe.outputs.dir }}/package-lock.json
 
       - name: Install and build
-        working-directory: ${{ steps.setfe.outputs.dir }}
+        if: ${{ steps.probe.outputs.has_fe == 'true' }}
+        working-directory: ${{ steps.probe.outputs.dir }}
         run: |
           npm ci
           npm run build --if-present
@@ -108,11 +114,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Probe dockerfiles
+        id: dock
+        run: |
+          if [ -f "Dockerfile.backend" ]; then echo "has_backend_df=true" >> $GITHUB_OUTPUT; else echo "has_backend_df=false" >> $GITHUB_OUTPUT; fi
+          if [ -f "Dockerfile.frontend" ]; then echo "has_frontend_df=true" >> $GITHUB_OUTPUT; else echo "has_frontend_df=false" >> $GITHUB_OUTPUT; fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Build backend image
-        if: ${{ hashFiles('Dockerfile.backend') != '' }}
+        if: ${{ steps.dock.outputs.has_backend_df == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -121,11 +133,10 @@ jobs:
           tags: app/backend:ci
 
       - name: Build frontend image
-        if: ${{ hashFiles('Dockerfile.frontend') != '' }}
+        if: ${{ steps.dock.outputs.has_frontend_df == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.frontend
           push: false
           tags: app/frontend:ci
-
