@@ -34,38 +34,33 @@ export default function PatientList({ refreshTrigger, mode, onDelete, onPrint })
   });
 
   return (
-    <div style={{ maxWidth: "800px", margin: "0 auto", textAlign: "left" }}>
+    <div style={containerStyle}>
       {mode === "list" && (
         <>
           <button
             onClick={() => setShowFilters(!showFilters)}
-            style={{
-              marginBottom: "15px",
-              padding: "6px 12px",
-              cursor: "pointer",
-              fontSize: "16px"
-            }}
+            style={filterButtonStyle}
           >
-            🔍 Filters
+            🔍 Filtres
           </button>
 
           {showFilters && (
-            <div style={{ marginBottom: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={filterBoxStyle}>
               <input
                 type="text"
-                placeholder="Search by ID"
+                placeholder="Rechercher par ID"
                 value={searchId}
                 onChange={(e) => setSearchId(e.target.value)}
-                style={{ padding: "8px", width: "100%", maxWidth: "300px" }}
+                style={inputStyle}
               />
 
-              <select value={searchHospital} onChange={(e) => setSearchHospital(e.target.value)}>
-                <option value="">-- Filter by Referring Hospital --</option>
+              <select value={searchHospital} onChange={(e) => setSearchHospital(e.target.value)} style={inputStyle}>
+                <option value="">-- CH Référent --</option>
                 {hospitalOptions.map((h, i) => <option key={i} value={h}>{h}</option>)}
               </select>
 
-              <select value={searchDiagnosis} onChange={(e) => setSearchDiagnosis(e.target.value)}>
-                <option value="">-- Filter by Diagnosis --</option>
+              <select value={searchDiagnosis} onChange={(e) => setSearchDiagnosis(e.target.value)} style={inputStyle}>
+                <option value="">-- Diagnostic --</option>
                 {diagnosisOptions.map((d, i) => <option key={i} value={d}>{d}</option>)}
               </select>
 
@@ -73,7 +68,7 @@ export default function PatientList({ refreshTrigger, mode, onDelete, onPrint })
                 type="date"
                 value={searchDate}
                 onChange={(e) => setSearchDate(e.target.value)}
-                style={{ padding: "8px", maxWidth: "300px" }}
+                style={inputStyle}
               />
             </div>
           )}
@@ -82,27 +77,30 @@ export default function PatientList({ refreshTrigger, mode, onDelete, onPrint })
 
       <ul style={{ listStyle: "none", padding: 0 }}>
         {filteredPatients.map((p) => (
-          <li key={p.id} style={{
-            marginBottom: "40px",
-            borderBottom: "1px solid #444",
-            paddingBottom: "20px",
-            paddingTop: "20px"
-          }}>
-            <strong style={{ fontSize: "18px" }}>{p.name}</strong><br />
-            ID: {p.id}, Age: {p.age}, Sex: {p.sex}, Weight: {p.weight_kg ?? "N/A"} kg
+          <li key={p.id} style={cardStyle}>
+            <strong style={{ fontSize: "18px", color: "#083464" }}>{p.name}</strong><br />
+            <span>ID: {p.id}, Âge: {p.age}, Sexe: {p.sex}, Poids: {p.weight_kg ?? "N/A"} kg</span>
 
-            <div style={{ marginTop: "15px", display: "flex", gap: "10px", flexWrap: "wrap" }}>
+            <div style={buttonContainerStyle}>
               {mode === "list" && (
-                <button onClick={() => navigate(`/view/${p.id}`)}>View</button>
+                <button onClick={() => navigate(`/view/${p.id}`)} style={actionButtonStyle}>
+                  Voir
+                </button>
               )}
               {mode === "print" && (
-                <button onClick={() => onPrint(p.id)}>Print PDF</button>
+                <button onClick={() => onPrint(p.id)} style={actionButtonStyle}>
+                  Imprimer PDF
+                </button>
               )}
               {mode === "delete" && (
-                <button onClick={() => onDelete(p.id)}>Delete</button>
+                <button onClick={() => onDelete(p.id)} style={deleteButtonStyle}>
+                  Supprimer
+                </button>
               )}
               {mode === "update" && (
-                <button onClick={() => navigate(`/update/${p.id}`)}>Edit</button>
+                <button onClick={() => navigate(`/update/${p.id}`)} style={actionButtonStyle}>
+                  Modifier
+                </button>
               )}
             </div>
           </li>
@@ -111,3 +109,77 @@ export default function PatientList({ refreshTrigger, mode, onDelete, onPrint })
     </div>
   );
 }
+
+/* === Styles === */
+const containerStyle = {
+  maxWidth: "900px",
+  margin: "0 auto",
+  textAlign: "center",
+  fontFamily: "Arial, sans-serif"
+};
+
+const filterButtonStyle = {
+  marginBottom: "15px",
+  padding: "8px 16px",
+  cursor: "pointer",
+  fontSize: "16px",
+  backgroundColor: "#083464",
+  color: "white",
+  border: "none",
+  borderRadius: "8px"
+};
+
+const filterBoxStyle = {
+  marginBottom: "20px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+  padding: "15px",
+  border: "2px solid #083464",
+  borderRadius: "10px",
+  backgroundColor: "#f9faff"
+};
+
+const inputStyle = {
+  padding: "8px",
+  border: "1px solid #ccc",
+  borderRadius: "6px",
+  width: "100%",
+  maxWidth: "300px",
+  margin: "0 auto"
+};
+
+const cardStyle = {
+  marginBottom: "25px",
+  border: "2px solid #083464",
+  borderRadius: "12px",
+  padding: "20px",
+  backgroundColor: "white",
+  boxShadow: "0 2px 6px rgba(0,0,0,0.05)"
+};
+
+const buttonContainerStyle = {
+  marginTop: "15px",
+  display: "flex",
+  gap: "10px",
+  justifyContent: "center",
+  flexWrap: "wrap"
+};
+
+const actionButtonStyle = {
+  backgroundColor: "#083464",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  padding: "8px 14px",
+  cursor: "pointer"
+};
+
+const deleteButtonStyle = {
+  backgroundColor: "#dc3545",
+  color: "white",
+  border: "none",
+  borderRadius: "8px",
+  padding: "8px 14px",
+  cursor: "pointer"
+};
