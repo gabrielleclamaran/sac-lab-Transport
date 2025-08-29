@@ -1,7 +1,5 @@
 # Application de Transport Pédiatrique — CHU Sainte‑Justine
 
-![CI]https://github.com/piercebrd/sac-lab-Transport/actions/runs/17010551579/workflow
-
 Application destinée à l’équipe de transport pédiatrique pour :
 - créer/mettre à jour des dossiers de transport ;
 - saisir les diagnostics, co‑morbidités et **signes vitaux** (à l’arrivée & au départ) ;
