@@ -17,7 +17,6 @@ Application destinée à l’équipe de transport pédiatrique pour :
 - [Technologies](#technologies)
 - [Démarrage rapide](#démarrage-rapide)
   - [Avec Docker](#avec-docker)
-  - [En local (dev)](#en-local-dev)
 - [Configuration](#configuration)
 - [API](#api)
 - [Génération du PDF](#génération-du-pdf)
@@ -66,32 +65,6 @@ docker compose logs -f
 docker compose down
 # (effacer le volume DB) docker compose down -v
 ```
-
-### En local (dev)
-Backend :
-```bash
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install --upgrade pip
-# Si requirements.txt existe :
-pip install -r requirements.txt
-# Sinon, minimum :
-pip install flask flask-cors flask_sqlalchemy psycopg2-binary reportlab pytest pytest-cov ruff black
-
-export FLASK_APP=app
-export FLASK_ENV=development
-export DATABASE_URL="postgresql+psycopg2://postgres:postgres@localhost:5432/transport"
-export CORS_ORIGINS="http://localhost:3001"
-flask run -p 5000
-```
-
-Frontend :
-```bash
-cd frontend
-npm ci
-npm run dev   # http://localhost:3001
-```
-
 ---
 
 ## Configuration
@@ -107,12 +80,6 @@ UPLOAD_FOLDER=/app/zoll_uploads
 # Frontend
 VITE_API_URL=http://localhost:5050
 ```
-
-En dev local (sans Docker) :
-```
-DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/transport
-```
-
 ---
 
 ## API
@@ -209,7 +176,6 @@ Rendre la CI obligatoire sur les PR : *Settings → Branches → Require status 
 ---
 
 ## Conventions
-- **Lint/format** : Ruff + Black (job CI configurable en bloquant).  
 - **API** : JSON, `snake_case`, codes d’erreurs explicites.  
 - **Git** : branches de fonctionnalité (`feature/...`), commits conventionnels (`feat:`, `fix:`).
 
@@ -236,5 +202,3 @@ Rendre la CI obligatoire sur les PR : *Settings → Branches → Require status 
 
 ---
 
-## Licence
-MIT (ou autre selon votre politique). Voir `LICENSE`.
